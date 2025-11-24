@@ -1,0 +1,30 @@
+ไฟล์ script:
+sudo nano /etc/systemd/system/eps_app.service
+"
+[Unit]
+Description=EPS Detection App
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/diea/IRPC_Internship68/EPS_Detection
+ExecStart=/home/diea/IRPC_Internship68/EPS_Detection/venv/bin/python /home/diea/IRPC_Internship68/EPS_Detection/main.py
+Restart=always
+User=diea
+Environment="PATH=/home/diea/IRPC_Internship68/EPS_Detection/venv/bin:$PATH"
+
+[Install]
+WantedBy=multi-user.target
+"
+
+run script:
+sudo systemctl daemon-reload
+sudo systemctl enable eps_app.service
+sudo systemctl start eps_app.service
+
+
+ตรวจสอบสถานะ:
+sudo systemctl status eps_app.service
+
+คำสั่งหยุดรัน script ชั่วคราว และะเมื่อรีสตาร์ทเครื่องใหม่ service จะ กลับมาทำงานอัตโนมัติ
+sudo systemctl stop eps_app.service
