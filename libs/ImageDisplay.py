@@ -1,6 +1,5 @@
 import mmap
 import os
-from PIL import Image
 import numpy as np
 import cv2
 
@@ -20,15 +19,13 @@ class TFTImageDisplay:
             print(f"Error opening framebuffer: {e}")
             exit(1)
             
-    def convert_rgb565(self, image: Image.Image) -> bytearray:
-        """แปลงรูป PIL เป็น Byte Array ในรูปแบบ RGB565"""
-        img = image.convert('RGB')
-        img_np = np.array(img)
+    def convert_rgb565(self, image: np.ndarray) -> bytearray:
+        """แปลงรูปในรูปแบบ RGB565"""
 
         # แยกช่องสี (PIL เป็น RGB)
-        r = img_np[:, :, 0]
-        g = img_np[:, :, 1]
-        b = img_np[:, :, 2]
+        r = image[:, :, 0]
+        g = image[:, :, 1]
+        b = image[:, :, 2]
 
         # คำนวณ RGB565 แบบ Vectorized (ทำทีเดียวทั้งภาพ)
         # สูตร: (R & 0xF8) << 8 | (G & 0xFC) << 3 | (B >> 3)
@@ -39,12 +36,9 @@ class TFTImageDisplay:
         return rgb565.tobytes()
     
     def show_image_file(self, image_path):
-        """อ่านไฟล์รูป -> ปรับขนาด -> แปลงสี -> โชว์ขึ้นจอ"""
+        """อ่านไฟล์รูป -> แปลงสี -> โชว์ขึ้นจอ"""
         try:
-            img = Image.open(image_path)
-            
-            # แปลงเป็น RGB ธรรมดา
-            img = img.convert('RGB')
+            img = cv2.imread(image_path)
             
             self.show_image(img)
             
@@ -52,40 +46,19 @@ class TFTImageDisplay:
             print(f"Error: ไม่พบไฟล์รูปภาพ {image_path}")
         except Exception as e:
             print(f"Error: {e}")
-        finally:
-            if 'img' in locals():
-                img.close()
             
-    def show_image(self, image: Image.Image):
-        """แสดงรูป PIL Image โดยตรง"""
+    def show_image(self, image: np.ndarray):
+        """แสดงรูป"""
+        
+        if image.shape[1] != TFT_WIDTH or image.shape[0] != TFT_HEIGHT:
+            image = cv2.resize(image, (TFT_WIDTH, TFT_HEIGHT))
+        
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
         buffer = self.convert_rgb565(image)
         
         self.fb.seek(0)
         self.fb.write(buffer)
-
-    def show_cv2_frame(self, frame):
-        """
-        แสดงภาพจาก OpenCV (BGR) ขึ้นจอทันที
-        """
-        # Resize ให้ตรงกับขนาดจอ
-        if frame.shape[1] != TFT_WIDTH or frame.shape[0] != TFT_HEIGHT:
-            frame = cv2.resize(frame, (TFT_WIDTH, TFT_HEIGHT))
-            
-        # แยกช่องสี (OpenCV เป็น BGR)
-        # ใช้ Numpy Slicing
-        b = frame[:, :, 0]
-        g = frame[:, :, 1]
-        r = frame[:, :, 2]
-
-        # คำนวณ RGB565 (สูตร: R5 G6 B5)
-        # ใช้ .astype(np.uint16) เพื่อกันค่าล้น
-        rgb565 = ((r.astype(np.uint16) & 0xF8) << 8) | \
-                 ((g.astype(np.uint16) & 0xFC) << 3) | \
-                 (b.astype(np.uint16) >> 3)
-
-        # 4. เขียนลง Framebuffer (สลับ Byte ตาม Endian ของจอ)
-        self.fb.seek(0)
-        self.fb.write(rgb565.tobytes())
         
     def close(self):
         self.fb.close()

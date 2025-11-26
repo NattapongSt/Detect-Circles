@@ -1,4 +1,4 @@
-from time import sleep, time
+from time import time
 from threading import Thread
 from evdev import InputDevice, ecodes, list_devices
 from typing import Optional, Dict
@@ -16,8 +16,8 @@ CALIBRATION = {
 
 class TouchInput:
     def __init__(self, 
-                 calibration: Optional[Dict] = None,
-                 debug: Optional[bool] = False):
+                calibration: Optional[Dict] = None,
+                debug: Optional[bool] = False):
         self.cal = calibration
         self.debug = debug
         self.x = 0
@@ -99,7 +99,7 @@ class TouchInput:
                         print(f"Touch at: ({self.x}, {self.y})")
                 
     def get_current_touch(self) -> Optional[tuple[int, int]]:
-        """ดึงค่าพิกัดปัจจุบัน (x, y)"""
+        """ดึงค่าพิกัดปัจจุบัน (x, y) มีหน่วงเวลาป้องกัน debounce"""
         if self.updated:
             self.updated = False
             return (self.x, self.y)

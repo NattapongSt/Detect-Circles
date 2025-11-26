@@ -2,13 +2,14 @@
 import cv2
 import sys
 import os
+import subprocess
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
-from time import sleep
+from time import sleep, time
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from dotenv import load_dotenv, set_key
 from typing import Optional, Dict
+from datetime import datetime
 
 from libs.ReadTouch import TouchInput
 from libs.ImageDisplay import TFTImageDisplay
@@ -19,15 +20,23 @@ class MainSystem:
     def __init__(self):
         self.screen = TFTImageDisplay()
         self.touch = TouchInput()
-        self.NevBar = cv2.imread("./UI_Images/navBar.jpg")
-        self.NevBar = cv2.cvtColor(self.NevBar, cv2.COLOR_BGR2RGB)
+        self.NevBar = cv2.imread("./UI_Images/navBar.jpg", cv2.IMREAD_COLOR_RGB)
         self.top_left_ex = (20, 7)
         self.top_right_ex = (80, 7)
         self.bottom_left_ex = (20, 42)
 
+    def get_pi_temp(self):
+        try:
+            temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode()
+            temp_celsius = float(temp_output.split('=')[1].split('\'')[0])
+            return temp_celsius
+        except Exception as e:
+            print(f"Error getting temperature with vcgencmd: {e}")
+            return None
+    
     def Distribution_plot(self, 
-                          size_conv: list[float], 
-                          guideline_scale: float = 5) -> np.ndarray:
+                        size_conv: list[float], 
+                        guideline_scale: float = 5) -> np.ndarray:
         width_px, height_px = 480, 320
         dpi = 100
         figsize = (width_px / dpi, height_px / dpi)
@@ -96,24 +105,34 @@ class MainSystem:
         y_end = min(y_start + view_h, self.full_h)
         view = self.full_img[y_start:y_end, :, :]
         
-        self.screen.show_cv2_frame(cv2.cvtColor(view, cv2.COLOR_BGR2RGB))
+        self.screen.show_image(cv2.cvtColor(view, cv2.COLOR_BGR2RGB))
 
     def manage_scroll(self, full_img: np.ndarray):
         self.last_touch_y = None
         self.scroll_y = 0
         self.full_h, self.full_w, _ = full_img.shape
         self.full_img = full_img
+        is_saving = False
+        start_saving_time = 0
         
         while True:
             touch_state = self.touch.get_touch_state()
             x, y, is_pressed = touch_state
             
             if is_pressed and self.last_touch_y is None and self.scroll_y <= 25:
-                 if (x >= self.top_left_ex[0] and y >= self.top_left_ex[1] and
-                     x <= self.top_right_ex[0] and y <= self.bottom_left_ex[1]):
-                    print("Exit")
+                if (x >= self.top_left_ex[0] and y >= self.top_left_ex[1] and
+                    x <= self.top_right_ex[0] and y <= self.bottom_left_ex[1]):
                     break
-                    
+                
+            if not is_saving and self.get_pi_temp() >= 70:
+                print("Saving Mode")
+                is_saving = True
+                start_saving_time = time()
+            
+            if time() - start_saving_time > 600 and is_saving:
+                self.touch.updated = False
+                break
+            
             self.handle_scroll(touch_state)
 
     def num_pad(self, touch_x: int, 
@@ -172,21 +191,22 @@ class MainSystem:
         return None
     
     def show_num_screen_input(self, screen_input: str):
-        background_image = Image.open("./UI_Images/EPS_Guideline.png")
-        font = ImageFont.truetype("DejaVuSans.ttf", 28)
+        background_image = cv2.imread("./UI_Images/EPS_Guideline.png")
+        # background_image = cv2.cvtColor(background_image, cv2.COLOR_BGR2RGB)
 
-        # --- กำหนดพื้นที่สำหรับแสดงตัวหนังสือ ---
-        text_update_area = (195, 25)
-        draw_on_frame = ImageDraw.Draw(background_image)
-        
-        # วาดข้อความใหม่ลงไปบนสำเนาของรูปภาพพื้นหลัง
-        draw_on_frame.text(
-            (text_update_area[0], text_update_area[1]), # ตำแหน่ง x, y เริ่มต้น
+        x, y = 195, 25
+
+        cv2.putText(
+            background_image,
             screen_input,
-            font=font,
-            fill=(255, 255, 255) #
+            (x, y + 28),               # y+size แก้ baseline
+            cv2.FONT_HERSHEY_SIMPLEX,  # ฟอนต์ของ OpenCV
+            1,                         # ขนาดตัวอักษร
+            (255, 255, 255),           # สี (BGR)
+            2,                         # ความหนา
+            cv2.LINE_AA
         )
-
+        
         MainSys.screen.show_image(background_image)
     
     def sizing(self, guideline_scale: float = 5):
@@ -203,21 +223,28 @@ class MainSystem:
             frame_measured = frame.copy()
             frame_screen, mean_size, box = detect_red_rectangles(image = frame)
             
-            self.screen.show_cv2_frame(frame_screen)
+            self.screen.show_image(frame_screen)
 
             capture = self.touch.get_current_touch()
             if capture:
-                # cv2.imwrite("captured_frame.jpg", frame_measured)
+                
+                # now = datetime.now()
+                # timestamp_str = now.strftime("%H%M%S")
+                # filename = f"dataset/flash_img/size1.4/{timestamp_str}.jpg"
+                # filename = f"dataset/not_flash/size1.4/{timestamp_str}.jpg"
+                # cv2.imwrite(filename, frame_measured)
+                
                 cap.release()
-
-                pixel_mm = float(mean_size / guideline_scale)
+                pixel_mm = mean_size / guideline_scale
                 df, ovs = measure_beads_with_unpeel(
                             frame_measured,
+                            box=box,
                             pixel_mm = pixel_mm,
                             dedup_center_dist_frac = 0.5,
                             r_hint_px = 20,                     # ถ้ารู้คร่าว ๆ ใส่ได้ เช่น 10
+                            calibrate_scale = 0.1,
                         )
-
+                
                 dist_plot = self.Distribution_plot(df['equiv_diam_um'], guideline_scale)
                 detected_img = ovs.copy()
                 cv2.drawContours(detected_img, [box], 0, (0, 255, 0), 1)
@@ -249,7 +276,7 @@ if __name__ == "__main__":
         
         MainSys= MainSystem()
         MainSys.screen.show_image_file("./UI_Images/EPS.png")
-
+        
         while True:
             touch_data = MainSys.touch.get_current_touch()
             if touch_data:
@@ -257,14 +284,12 @@ if __name__ == "__main__":
                 if x >= top_left[0] and y >= top_left[1] and x <= top_right[0] and y <= bottom_left[1]:
                     """Sizing area touched"""
                     
-                    print("Sizing area touched")
                     guideline_scale = float(os.getenv("guideline_scale"))
                     MainSys.sizing(guideline_scale)
                     touch_data = None
                 elif x >= guide_top_left[0] and y >= guide_top_left[1] and x <= guide_top_right[0] and y <= guide_bottom_left[1]:
                     """Guideline area touched"""
                     
-                    print("Guideline area touched")
                     MainSys.screen.show_image_file("./UI_Images/EPS_Guideline.png")
                     screen_input = ""
                     
@@ -284,11 +309,13 @@ if __name__ == "__main__":
                                         MainSys.sizing(float(os.environ["guideline_scale"]))
                                         touch_data = None
                                         break
-                                    sys.exit(0)
+                                    pass
                                 else:
                                     screen_input += str(touch_cap)
                                     
                                 MainSys.show_num_screen_input(screen_input)
+                        
+                        sleep(0.05)
 
     except KeyboardInterrupt:
         print("Exiting...")

@@ -2,15 +2,23 @@ import cv2
 import numpy as np
 
 def detect_red_rectangles(image=None, image_path=None, min_area=1000):
-    if image is None and image_path is not None:
+    if image is None and image_path:
         image = cv2.imread(image_path)
-
+    
+    image = cv2.medianBlur(image, 3)  # ลด noise เล็กน้อย
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)            # แปลงเป็น HSV เพราะการแยกสีใน HSV ทำได้ง่ายกว่า
-
-    # สีแดงใน HSV จะอยู่ สองช่วง (Hue ใกล้ 0° และ 180°)
-    lower_red1 = np.array([0, 110, 100])
+    
+    """
+    สีแดงใน HSV จะอยู่ สองช่วง (Hue ใกล้ 0° และ 180°) 
+    np.array([H, S, V])
+    
+    H (Hue) = โทนสี 0–180
+    S (Saturation) = ความสดของสี 0–255
+    V (Value/Brightness) = ความสว่าง 0–255
+    """
+    lower_red1 = np.array([0, 110, 85])
     upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([160, 110, 100])
+    lower_red2 = np.array([160, 110, 85])
     upper_red2 = np.array([180, 255, 255])
 
     # mask (ขาว=ใช่, ดำ=ไม่ใช่)
