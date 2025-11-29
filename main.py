@@ -13,7 +13,7 @@ from datetime import datetime
 
 from libs.ReadTouch import TouchInput
 from libs.ImageDisplay import TFTImageDisplay
-from libs.measure import measure_beads_with_unpeel
+from libs.measure import EPS_Measurement
 from libs.detect_rectangle import detect_red_rectangles
 
 class MainSystem:
@@ -80,7 +80,7 @@ class MainSystem:
         # ใช้ buffer_rgba() → แปลงเป็น numpy array
         w, h = canvas.get_width_height()
         buf = np.frombuffer(canvas.buffer_rgba(), dtype=np.uint8).reshape(h, w, 4)
-
+        plt.close()
         return buf[:, :, :3]
     
     def handle_scroll(self, touch_state: tuple[int, int, bool]):
@@ -112,7 +112,7 @@ class MainSystem:
         self.scroll_y = 0
         self.full_h, self.full_w, _ = full_img.shape
         self.full_img = full_img
-        is_saving = False
+        # is_saving = False
         start_saving_time = 0
         
         while True:
@@ -124,14 +124,14 @@ class MainSystem:
                     x <= self.top_right_ex[0] and y <= self.bottom_left_ex[1]):
                     break
                 
-            if not is_saving and self.get_pi_temp() >= 70:
-                print("Saving Mode")
-                is_saving = True
-                start_saving_time = time()
+            # if not is_saving and self.get_pi_temp() >= 70:
+            #     print("Saving Mode")
+            #     is_saving = True
+            #     start_saving_time = time()
             
-            if time() - start_saving_time > 600 and is_saving:
-                self.touch.updated = False
-                break
+            # if time() - start_saving_time > 600 and is_saving:
+            #     self.touch.updated = False
+            #     break
             
             self.handle_scroll(touch_state)
 
@@ -210,6 +210,7 @@ class MainSystem:
         MainSys.screen.show_image(background_image)
     
     def sizing(self, guideline_scale: float = 5):
+        eps = EPS_Measurement()
         cap = cv2.VideoCapture(0)
             
         if not cap.isOpened():
@@ -236,23 +237,23 @@ class MainSystem:
                 
                 cap.release()
                 pixel_mm = mean_size / guideline_scale
-                df, ovs = measure_beads_with_unpeel(
+                df, ovs = eps.measure_beads_with_unpeel(
                             frame_measured,
                             box=box,
                             pixel_mm = pixel_mm,
                             dedup_center_dist_frac = 0.5,
                             r_hint_px = 20,                     # ถ้ารู้คร่าว ๆ ใส่ได้ เช่น 10
-                            calibrate_scale = 0.1,
                         )
                 
                 dist_plot = self.Distribution_plot(df['equiv_diam_um'], guideline_scale)
                 detected_img = ovs.copy()
                 cv2.drawContours(detected_img, [box], 0, (0, 255, 0), 1)
+                # cv2.imwrite("ov_img.png", detected_img)
                 detected_img = cv2.resize(detected_img, (480, 320))
                 detected_img = cv2.cvtColor(detected_img, cv2.COLOR_BGR2RGB)
                 combined_result = np.vstack((self.NevBar, detected_img, dist_plot))
-                # cv2.imwrite("combined_result.jpg", cv2.cvtColor(combined_result, cv2.COLOR_RGB2BGR))
-                
+                cv2.imwrite("combined_result.jpg", cv2.cvtColor(combined_result, cv2.COLOR_RGB2BGR))
+        
                 self.manage_scroll(combined_result)
                 self.screen.show_image_file("./UI_Images/EPS.png")
                 break
