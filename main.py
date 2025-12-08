@@ -1,15 +1,12 @@
-
 import cv2
 import sys
 import os
-import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
-from time import sleep, time
+from time import sleep
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from dotenv import load_dotenv, set_key
-from typing import Optional, Dict
-from datetime import datetime
+from typing import Optional
 
 from libs.ReadTouch import TouchInput
 from libs.ImageDisplay import TFTImageDisplay
@@ -20,23 +17,25 @@ class MainSystem:
     def __init__(self):
         self.screen = TFTImageDisplay()
         self.touch = TouchInput()
-        self.NevBar = cv2.imread("./UI_Images/navBar.jpg", cv2.IMREAD_COLOR_RGB)
+        self.NevBar = cv2.imread("/home/eps/EPS_Detection/UI_Images/navBar.jpg", cv2.IMREAD_COLOR_RGB)
         self.top_left_ex = (20, 7)
         self.top_right_ex = (80, 7)
         self.bottom_left_ex = (20, 42)
-
-    def get_pi_temp(self):
-        try:
-            temp_output = subprocess.check_output(["vcgencmd", "measure_temp"]).decode()
-            temp_celsius = float(temp_output.split('=')[1].split('\'')[0])
-            return temp_celsius
-        except Exception as e:
-            print(f"Error getting temperature with vcgencmd: {e}")
-            return None
     
     def Distribution_plot(self, 
                         size_conv: list[float], 
                         guideline_scale: float = 5) -> np.ndarray:
+        """
+        create distribution graph 
+
+        Args:
+            size_conv (list[float]): detected size
+            guideline_scale (float, optional): Sticker size guideline. Defaults to 5.
+
+        Returns:
+            np.ndarray: distribution graph image
+        """
+        
         width_px, height_px = 480, 320
         dpi = 100
         figsize = (width_px / dpi, height_px / dpi)
@@ -84,6 +83,12 @@ class MainSystem:
         return buf[:, :, :3]
     
     def handle_scroll(self, touch_state: tuple[int, int, bool]):
+        """
+        scroll display
+
+        Args:
+            touch_state (tuple[int, int, bool]): state touch x, y, bool (True=touch)
+        """
         view_h = 320
     
         x, y, is_pressed = touch_state
@@ -108,30 +113,25 @@ class MainSystem:
         self.screen.show_image(cv2.cvtColor(view, cv2.COLOR_BGR2RGB))
 
     def manage_scroll(self, full_img: np.ndarray):
+        """_summary_
+
+        Args:
+            full_img (np.ndarray): nav, detected, distribution graph image
+        """
         self.last_touch_y = None
         self.scroll_y = 0
         self.full_h, self.full_w, _ = full_img.shape
         self.full_img = full_img
-        # is_saving = False
-        start_saving_time = 0
         
         while True:
             touch_state = self.touch.get_touch_state()
             x, y, is_pressed = touch_state
             
+            # ตรวจจับกด exit -> break -> home UI
             if is_pressed and self.last_touch_y is None and self.scroll_y <= 25:
                 if (x >= self.top_left_ex[0] and y >= self.top_left_ex[1] and
                     x <= self.top_right_ex[0] and y <= self.bottom_left_ex[1]):
                     break
-                
-            # if not is_saving and self.get_pi_temp() >= 70:
-            #     print("Saving Mode")
-            #     is_saving = True
-            #     start_saving_time = time()
-            
-            # if time() - start_saving_time > 600 and is_saving:
-            #     self.touch.updated = False
-            #     break
             
             self.handle_scroll(touch_state)
 
@@ -139,10 +139,16 @@ class MainSystem:
                 touch_y: int) -> Optional[str]:
         """
         ฟังก์ชันสำหรับตรวจสอบว่าพิกัด (touch_x, touch_y) อยู่ในสี่เหลี่ยมอันไหน
-        ในตารางขนาด 3x3
+        
+        Args:
+            touch_x (int)
+            touch_y (int)
+
+        Returns:
+            Optional[str]: ปุ่มที่แตะ
         """
 
-        # --- 1. กำหนดค่าพื้นฐานของตารางและสี่เหลี่ยม ---
+        # --- กำหนดค่าพื้นฐานของตารางและสี่เหลี่ยม ---
         
         start_xy = (31, 76)                     # พิกัดเริ่มต้นของสี่เหลี่ยมอันแรก (มุมบนซ้าย)
         rect_size = (96, 50)                    # ขนาดของสี่เหลี่ยมแต่ละอัน (กว้าง, ยาว)
@@ -158,7 +164,7 @@ class MainSystem:
         del_start = (347, 76)
         del_end = (448, 182)
         
-        # --- 2. วนลูปเพื่อตรวจสอบสี่เหลี่ยมแต่ละอัน ---
+        # --- วนลูปเพื่อตรวจสอบสี่เหลี่ยมแต่ละอัน ---
         
         if (zero_start[0] <= touch_x <= zero_end[0]) and (zero_start[1] <= touch_y <= zero_end[1]):
             return "0"
@@ -191,8 +197,13 @@ class MainSystem:
         return None
     
     def show_num_screen_input(self, screen_input: str):
-        background_image = cv2.imread("./UI_Images/EPS_Guideline.png")
-        # background_image = cv2.cvtColor(background_image, cv2.COLOR_BGR2RGB)
+        """
+        display number
+
+        Args:
+            screen_input (str)
+        """
+        background_image = cv2.imread("/home/eps/EPS_Detection/UI_Images/EPS_Guideline.png")
 
         x, y = 195, 25
 
@@ -210,6 +221,18 @@ class MainSystem:
         MainSys.screen.show_image(background_image)
     
     def sizing(self, guideline_scale: float = 5):
+        """
+        เริ่มใช้งาน
+        เปิดกล้องและวัดขนาดสติกเกอร์ guideline 
+        รอแตะที่จอ เมื่อแตะที่จอจะไปวัดขนาดเม็ดพลาสติก
+
+        Args:
+            guideline_scale (float, optional): _description_. Defaults to 5.
+
+        Raises:
+            RuntimeError: _description_
+        """
+        
         eps = EPS_Measurement()
         cap = cv2.VideoCapture(0)
             
@@ -221,7 +244,6 @@ class MainSystem:
             if not ret:
                 print("ไม่สามารถอ่าน frame ได้")
 
-            frame_measured = frame.copy()
             frame_screen, mean_size, box = detect_red_rectangles(image = frame)
             
             self.screen.show_image(frame_screen)
@@ -229,16 +251,10 @@ class MainSystem:
             capture = self.touch.get_current_touch()
             if capture:
                 
-                # now = datetime.now()
-                # timestamp_str = now.strftime("%H%M%S")
-                # filename = f"dataset/flash_img/size1.4/{timestamp_str}.jpg"
-                # filename = f"dataset/not_flash/size1.4/{timestamp_str}.jpg"
-                # cv2.imwrite(filename, frame_measured)
-                
                 cap.release()
                 pixel_mm = mean_size / guideline_scale
                 df, ovs = eps.measure_beads_with_unpeel(
-                            frame_measured,
+                            frame,
                             box=box,
                             pixel_mm = pixel_mm,
                             dedup_center_dist_frac = 0.5,
@@ -246,24 +262,23 @@ class MainSystem:
                         )
                 
                 dist_plot = self.Distribution_plot(df['equiv_diam_um'], guideline_scale)
+                
                 detected_img = ovs.copy()
                 cv2.drawContours(detected_img, [box], 0, (0, 255, 0), 1)
-                # cv2.imwrite("ov_img.png", detected_img)
                 detected_img = cv2.resize(detected_img, (480, 320))
                 detected_img = cv2.cvtColor(detected_img, cv2.COLOR_BGR2RGB)
+                
                 combined_result = np.vstack((self.NevBar, detected_img, dist_plot))
-                cv2.imwrite("combined_result.jpg", cv2.cvtColor(combined_result, cv2.COLOR_RGB2BGR))
+                # cv2.imwrite("combined_result.jpg", cv2.cvtColor(combined_result, cv2.COLOR_RGB2BGR))
         
                 self.manage_scroll(combined_result)
-                self.screen.show_image_file("./UI_Images/EPS.png")
+                self.screen.show_image_file("/home/eps/EPS_Detection/UI_Images/EPS.png")
                 break
         
 if __name__ == "__main__":
     try:
         print("Initialize system.")
-        
-        current_directory = os.getcwd()
-        dotenv_path = os.path.join(current_directory, 'guideline-scale/.env')
+        dotenv_path = "/home/eps/EPS_Detection/guideline-scale/.env"
         load_dotenv(dotenv_path=dotenv_path)
         
         # Capture coord
@@ -276,10 +291,10 @@ if __name__ == "__main__":
         guide_top_right = (480, 17)
         
         MainSys= MainSystem()
-        MainSys.screen.show_image_file("./UI_Images/EPS.png")
+        MainSys.screen.show_image_file("/home/eps/EPS_Detection/UI_Images/EPS.png")
         
         while True:
-            touch_data = MainSys.touch.get_current_touch()
+            touch_data = MainSys.touch.get_current_touch()              # รออ่านตำแน่งที่แตะ
             if touch_data:
                 x, y = touch_data
                 if x >= top_left[0] and y >= top_left[1] and x <= top_right[0] and y <= bottom_left[1]:
@@ -291,7 +306,7 @@ if __name__ == "__main__":
                 elif x >= guide_top_left[0] and y >= guide_top_left[1] and x <= guide_top_right[0] and y <= guide_bottom_left[1]:
                     """Guideline area touched"""
                     
-                    MainSys.screen.show_image_file("./UI_Images/EPS_Guideline.png")
+                    MainSys.screen.show_image_file("/home/eps/EPS_Detection/UI_Images/EPS_Guideline.png")
                     screen_input = ""
                     
                     while True:
