@@ -1,17 +1,28 @@
-ไฟล์ script:
-sudo nano /etc/systemd/system/eps_app.service
+ไฟล์ script รัน main.py:
+sudo nano /etc/systemd/system/eps-size-meter.service
 "
 [Unit]
-Description=EPS Detection App
-After=network.target
+Description=EPS Beads Size Meter Service
+# ให้เริ่มทำงานหลังจากระบบ Network และ Filesystem พร้อมแล้ว
+After=network.target filesystem.target
 
 [Service]
-Type=simple
-WorkingDirectory=/home/diea/IRPC_Internship68/EPS_Detection
-ExecStart=/home/diea/IRPC_Internship68/EPS_Detection/venv/bin/python /home/diea/IRPC_Internship68/EPS_Detection/main.py
+User=root
+Group=root
+
+# โฟลเดอร์ที่เก็บโค้ด
+WorkingDirectory=/home/eps/eps-bead-size-meter
+
+ExecStart=/home/eps/eps-bead-size-meter/venv/bin/python3 /home/eps/eps-bead-size-meter/main.py
+
+# ถ้าโปรแกรมล่ม หรือ Error ให้รันใหม่เองเสมอ
 Restart=always
-User=diea
-Environment="PATH=/home/diea/IRPC_Internship68/EPS_Detection/venv/bin:$PATH"
+# รอ 3 วินาทีก่อนรันใหม่
+RestartSec=3
+
+# ส่ง output (print) ไปที่ system log (เอาไว้ debug)
+StandardOutput=inherit
+StandardError=inherit
 
 [Install]
 WantedBy=multi-user.target
@@ -19,12 +30,15 @@ WantedBy=multi-user.target
 
 run script:
 sudo systemctl daemon-reload
-sudo systemctl enable eps_app.service
-sudo systemctl start eps_app.service
+sudo systemctl enable eps-size-meter.service
+sudo systemctl start eps-size-meter.service
 
 
 ตรวจสอบสถานะ:
-sudo systemctl status eps_app.service
+sudo systemctl status eps-size-meter.service
 
 คำสั่งหยุดรัน script ชั่วคราว และะเมื่อรีสตาร์ทเครื่องใหม่ service จะ กลับมาทำงานอัตโนมัติ
-sudo systemctl stop eps_app.service
+sudo systemctl stop eps-size-meter.service
+
+check log in service
+sudo journalctl -u webhook-server.service -f

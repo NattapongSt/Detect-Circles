@@ -17,7 +17,7 @@ class MainSystem:
     def __init__(self):
         self.screen = TFTImageDisplay()
         self.touch = TouchInput()
-        self.NevBar = cv2.imread("/home/eps/EPS_Detection/UI_Images/navBar.jpg", cv2.IMREAD_COLOR_RGB)
+        self.NevBar = cv2.imread("UI_Images/navBar.jpg", cv2.IMREAD_COLOR_RGB)
         self.top_left_ex = (20, 7)
         self.top_right_ex = (80, 7)
         self.bottom_left_ex = (20, 42)
@@ -203,7 +203,7 @@ class MainSystem:
         Args:
             screen_input (str)
         """
-        background_image = cv2.imread("/home/eps/EPS_Detection/UI_Images/EPS_Guideline.png")
+        background_image = cv2.imread("UI_Images/EPS_Guideline.png")
 
         x, y = 195, 25
 
@@ -272,13 +272,13 @@ class MainSystem:
                 # cv2.imwrite("combined_result.jpg", cv2.cvtColor(combined_result, cv2.COLOR_RGB2BGR))
         
                 self.manage_scroll(combined_result)
-                self.screen.show_image_file("/home/eps/EPS_Detection/UI_Images/EPS.png")
+                self.screen.show_image_file("UI_Images/EPS.png")
                 break
         
 if __name__ == "__main__":
     try:
         print("Initialize system.")
-        dotenv_path = "/home/eps/EPS_Detection/guideline-scale/.env"
+        dotenv_path = "guideline-scale/.env"
         load_dotenv(dotenv_path=dotenv_path)
         
         # Capture coord
@@ -291,7 +291,7 @@ if __name__ == "__main__":
         guide_top_right = (480, 17)
         
         MainSys= MainSystem()
-        MainSys.screen.show_image_file("/home/eps/EPS_Detection/UI_Images/EPS.png")
+        MainSys.screen.show_image_file("UI_Images/EPS.png")
         
         while True:
             touch_data = MainSys.touch.get_current_touch()              # รออ่านตำแน่งที่แตะ
@@ -306,7 +306,7 @@ if __name__ == "__main__":
                 elif x >= guide_top_left[0] and y >= guide_top_left[1] and x <= guide_top_right[0] and y <= guide_bottom_left[1]:
                     """Guideline area touched"""
                     
-                    MainSys.screen.show_image_file("/home/eps/EPS_Detection/UI_Images/EPS_Guideline.png")
+                    MainSys.screen.show_image_file("UI_Images/EPS_Guideline.png")
                     screen_input = ""
                     
                     while True:

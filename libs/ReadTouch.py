@@ -3,6 +3,11 @@ from threading import Thread
 from evdev import InputDevice, ecodes, list_devices
 from typing import Optional, Dict
 
+"""
+    สำหรับอ่านตำแหน่งที่แตะบนจอขนาด 480x320
+    มีการทำ calibration เพื่อให้ตำแหน่งถูกต้อง
+"""
+
 TFT_WIDTH = 480
 TFT_HEIGHT = 320
 
@@ -33,6 +38,9 @@ class TouchInput:
         self.start()
 
     def _find_device(self):
+        """
+        หา touch driver
+        """
         try:
             for path in list_devices():
                 dev = InputDevice(path)
@@ -43,9 +51,15 @@ class TouchInput:
         return None
 
     def _map(self, v, in_min, in_max, out_min, out_max):
+        """
+        map ต่ำแหน่งที่ได้
+        """
         return (v - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
     def start(self):
+        """
+        เริ่มใช้งานจาก driver ที่เจอ
+        """
         if not self.device: return
         Thread(target=self._run, daemon=True).start()
 
