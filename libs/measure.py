@@ -102,11 +102,14 @@ class EPS_Measurement:
                 # check if out of 10% of boundary
                 if 0.6 <= equiv_diam_px <= 1.28:
                     # Polynomial Degree 2
-                    rescaled = (-1.00420447 * equiv_diam_px**2) + (3.2192789 * equiv_diam_px) -1.0031286
+                    # rescaled = (-1.00420447 * equiv_diam_px**2) + (3.2192789 * equiv_diam_px) -1.0031286
+                    rescaled = (-0.95526892 * equiv_diam_px**2) + (3.12504613 * equiv_diam_px) -0.96687283
                     row["equiv_diam_um"] = round(rescaled, 1)
                 else:
                     # raw value
                     row["equiv_diam_um"] = round(equiv_diam_px, 1)
+                    
+                # row["equiv_diam_umr2"] = round(row["equiv_diam_px"] / pixel_size_um, 2)
             
             rows.append(row)
         return pd.DataFrame(rows)
@@ -285,7 +288,7 @@ class EPS_Measurement:
         """
         
         # debug image
-        # cv2.imwrite("top.png", self._cache_top)
+        cv2.imwrite("top.png", self._cache_top)
         
         if self.r_hint_px is None:
             self.r_hint_px = max(6, min(self.img_gray.shape[:2]) / 60.0)
@@ -326,7 +329,7 @@ class EPS_Measurement:
         """
         
         # debug image
-        # cv2.imwrite("bot.png", self._cache_bottom)
+        cv2.imwrite("bot.png", self._cache_bottom)
         
         if self.r_hint_px is None:
             self.r_hint_px = max(6, min(self.img_bgr.shape[:2]) / 60.0)
@@ -377,7 +380,7 @@ class EPS_Measurement:
         self.img_gray = cv2.cvtColor(self.img_bgr, cv2.COLOR_BGR2GRAY)
         self.img_gray = self.inpaint_guideline(self.img_gray, expand=1)
         
-        self._cache_top = self.preprocess_img(self.img_gray, 5, (8,8), True, 5)
+        self._cache_top = self.preprocess_img(self.img_gray, 2, (4,4), True, 5)
         self._cache_bottom = self.preprocess_img(self.img_gray, 2, (4,4), False, 3)
         
         is_inpainted = False
@@ -427,6 +430,15 @@ class EPS_Measurement:
                                              min_center_dist_frac=dedup_center_dist_frac)
         ov_img = self._draw_circles(ov_img, merged_all, color=(255, 0, 0))
         df_merged = self._circles_to_df(merged_all, pixel_size_um=pixel_mm)
+        
+        # size_conv = np.array(df_merged["equiv_diam_umr2"])
+        # unique_vals, counts = np.unique(size_conv, return_counts=True)
+        # percentages = (counts / len(size_conv)) * 100
+        # print("\n")
+        # for val, pct in zip(unique_vals, percentages):
+        #     print(f"  {val:.2f} mm: {pct:.1f}%")
+        # print("\n")
+    
         return df_merged, ov_img
     
 if __name__ == "__main__":
