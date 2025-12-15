@@ -13,6 +13,27 @@ A program designed to detect spherical objects, measure their size, and display 
 
 ---
 
+## Set up 3.5 inch SPI Touch Screen Display for Raspberry Pi
+
+### Install Driver for Raspberry Pi
+Execute the following commands (Pi needs to connect Internet)
+
+```bash
+sudo rm -rf LCD-show
+git clone https://github.com/goodtft/LCD-show.git
+chmod -R 755 LCD-show
+cd LCD-show/
+sudo ./MHS35-show
+```
+
+**If it's still not working, try comparing the config.txt file.**
+
+```bash
+sudo cat /boot/firmware/config.txt
+```
+
+---
+
 ## Service Installation (Auto-start)
 
 To ensure the program runs automatically every time the machine boots, we use `systemd`.
@@ -67,6 +88,8 @@ sudo systemctl enable size-meter.service
 sudo systemctl start size-meter.service
 ```
 
+---
+
 ## Service Management (Control & Monitoring)
 
 - ### Check Status
@@ -97,6 +120,8 @@ sudo systemctl start size-meter.service
     ```bash
     sudo systemctl disable --now size-meter.service
     ```
+
+---
 
 ## Viewing Logs (Troubleshooting)
 
